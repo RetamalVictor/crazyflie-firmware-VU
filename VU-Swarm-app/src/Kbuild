@@ -1,0 +1,1 @@
+obj-y += icra_combined.o
