@@ -1,6 +1,11 @@
 # Crazyflie Firmware  [![CI](https://github.com/bitcraze/crazyflie-firmware/workflows/CI/badge.svg)](https://github.com/bitcraze/crazyflie-firmware/actions?query=workflow%3ACI)
+# *Onboard Controller Design for Nano UAV Swarm in Operator-Guided Collective Behaviours *
+The firmaware files needed for the experiments are located in ```crazyflie-firmware-VU/examples/app_swarm```
 
-This project contains the source code for the firmware used in the Crazyflie range of platforms, including the Crazyflie 2.X and the Roadrunner.
+Please follow the official bitcraze documentation to build and flash new firmware in the crazyflie. 
+More information about the app layer can be found [here](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/userguides/app_layer/).
+
+Once the new app is flashed in the crazyflies. Please refer to the main [mision control script](https://github.com/RetamalVictor/crazyswarm-VU) to initiate the experiments.
 
 ### Crazyflie 1.0 support
 
