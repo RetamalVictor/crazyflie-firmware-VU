@@ -15,7 +15,8 @@ Coming soon
 REQUIREMENTS
 ------------
 
-Installation of [Crazyswarm](https://github.com/USC-ACTLab/crazyswarm)
+Installation of [Crazyswarm](https://github.com/USC-ACTLab/crazyswarm).
+
 Same requirements as Crazyflie firmware
 
 ## Installation
