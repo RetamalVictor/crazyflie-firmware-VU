@@ -1,5 +1,8 @@
 # Crazyflie Firmware  [![CI](https://github.com/bitcraze/crazyflie-firmware/workflows/CI/badge.svg)](https://github.com/bitcraze/crazyflie-firmware/actions?query=workflow%3ACI)
 # *Onboard Controller Design for Nano UAV Swarm in Operator-Guided Collective Behaviours *
+[Flight videos of the experiments can be found on this link](https://www.youtube.com/watch?v=RA3ePt5Dhoo)
+
+
 The firmaware files needed for the experiments are located in ```crazyflie-firmware-VU/examples/app_swarm```
 
 Please follow the official bitcraze documentation to build and flash new firmware in the crazyflie. 
