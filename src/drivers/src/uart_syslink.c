@@ -62,6 +62,7 @@ static xSemaphoreHandle uartBusy;
 static StaticSemaphore_t uartBusyBuffer;
 static xQueueHandle syslinkPacketDelivery;
 STATIC_MEM_QUEUE_ALLOC(syslinkPacketDelivery, 8, sizeof(SyslinkPacket));
+static bool syslinkPacketDeliveryReadyToReceive = false;
 
 #ifdef CONFIG_SYSLINK_RX_DMA
 static uint8_t dmaRXBuffer[64];
@@ -255,6 +256,11 @@ void uartslkResumeRx(void)
   NVIC_EnableIRQ(UARTSLK_IRQ);
 }
 
+void uartslkEnableIncoming()
+{
+  syslinkPacketDeliveryReadyToReceive = true;
+}
+
 void uartslkGetPacketBlocking(SyslinkPacket* packet)
 {
   xQueueReceive(syslinkPacketDelivery, packet, portMAX_DELAY);
@@ -317,7 +323,11 @@ void uartslkSendDataDmaBlocking(uint32_t size, uint8_t* data)
     // Enable the Transfer Complete interrupt
     DMA_ITConfig(UARTSLK_DMA_TX_STREAM, DMA_IT_TC, ENABLE);
     // Enable USART DMA TX Requests
+    // Critical section is needed as the RX DMA that runs form interrupt can
+    // change the same USARTx->CR3 register at the wrong point (not atomic).
+    taskENTER_CRITICAL();
     USART_DMACmd(UARTSLK_TYPE, USART_DMAReq_Tx, ENABLE);
+    taskEXIT_CRITICAL();
     // Clear transfer complete
     USART_ClearFlag(UARTSLK_TYPE, USART_FLAG_TC);
     // Enable DMA USART TX Stream
@@ -430,7 +440,10 @@ static void uartslkDmaRXIsr(void)
     // Post the packet to the queue if there's room
     if (!xQueueIsQueueFullFromISR(syslinkPacketDelivery))
     {
-      xQueueSendFromISR(syslinkPacketDelivery, (void *)&slp, &xHigherPriorityTaskWoken);
+      if (syslinkPacketDeliveryReadyToReceive)
+      {
+        xQueueSendFromISR(syslinkPacketDelivery, (void *)&slp, &xHigherPriorityTaskWoken);
+      }
     }
     else if(!(CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk))
     {
@@ -475,15 +488,11 @@ void uartslkHandleDataFromISR(uint8_t c, BaseType_t * const pxHigherPriorityTask
       cksum[1] += cksum[0];
       dataIndex = 0;
 #ifdef CONFIG_SYSLINK_RX_DMA
-      if (c > 1)
+      if (c >= 1)
       {
         rxState = waitForFirstStart;
         // For efficiency receive using DMA
         uartslkReceiveDMA(slp.length + UARTSLK_CLKSUM_SIZE);
-      }
-      else if (c == 1)
-      {
-        rxState = waitForData;
       }
       else // zero length
       {
@@ -529,7 +538,10 @@ void uartslkHandleDataFromISR(uint8_t c, BaseType_t * const pxHigherPriorityTask
       // Post the packet to the queue if there's room
       if (!xQueueIsQueueFullFromISR(syslinkPacketDelivery))
       {
-        xQueueSendFromISR(syslinkPacketDelivery, (void *)&slp, pxHigherPriorityTaskWoken);
+        if (syslinkPacketDeliveryReadyToReceive)
+        {
+          xQueueSendFromISR(syslinkPacketDelivery, (void *)&slp, pxHigherPriorityTaskWoken);
+        }
       }
       else if(!(CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk))
       {
