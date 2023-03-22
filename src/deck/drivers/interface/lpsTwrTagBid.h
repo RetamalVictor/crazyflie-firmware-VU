@@ -26,12 +26,12 @@ typedef struct {
   uint8_t answerTx[5];
   uint8_t finalRx[5];
   uint16_t reciprocalDistance;
-} __attribute__((packed)) lpsTwrTagReportPayload_t;
+} __attribute__((packed)) lpsTwrTagBidReportPayload_t;
 
 typedef struct {
   const uint64_t antennaDelay;
   locoAddress_t tagAddress;
-} lpsTwrAlgoOptions_t;
+} lpsTwrBidAlgoOptions_t;
 
 bool twrGetSwarmInfo(int robNum, float* height);
 bool commandShare(int RobIDfromControl, bool keep_flying);

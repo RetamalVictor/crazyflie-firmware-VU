@@ -22,7 +22,7 @@
 #define DEBUG_MODULE "TWRBID"
 
 // This will only store the tag address and the antenna delay
-static lpsTwrAlgoOptions_t twrBidOptions = {
+static lpsTwrBidAlgoOptions_t twrBidOptions = {
     .tagAddress = 0xbccf000000000000,
     .antennaDelay = LOCODECK_ANTENNA_DELAY
 };
@@ -41,7 +41,7 @@ typedef struct {
 static uint8_t selfID;
 static locoAddress_t selfAddress;
 static swarmInfo_t state;
-static lpsTwrAlgoOptions_t* options = &twrBidOptions;
+static lpsTwrBidAlgoOptions_t* options = &twrBidOptions;
 
 // Timestamps for ranging
 static dwTime_t poll_tx;
@@ -192,7 +192,7 @@ static void txcallback(dwDevice_t *dev)
     // time measurement
     dwTime_t departure;
     deGetTransmitTimestamp(dev, &departure);
-    departure.full += (options->anntenaDelay / 2);
+    departure.full += (options->antennaDelay / 2);
 
     if (current_mode_trans) // sender mode
     {
@@ -281,7 +281,7 @@ static void rxcallback(dwDevice_t *dev)
 
                 // get the time stamp
                 deGetReceiveTimestamp(dev, &arival);
-                arival.full -= (options->anntenaDelay / 2);
+                arival.full -= (options->antennaDelay / 2);
 
                 // store the timne stamp
                 answer_rx = arival;
@@ -300,7 +300,7 @@ static void rxcallback(dwDevice_t *dev)
                 txPacket.payload[LPS_TWR_SEQ] = rxPacket.payload[LPS_TWR_SEQ];
 
                 // extract payload to get the time stamps
-                lpsTwrTagReportPayload_t *report = (lpsTwrTagReportPayload_t *)(rxPacket.payload + 2);
+                lpsTwrTagBidReportPayload_t *report = (lpsTwrTagBidReportPayload_t *)(rxPacket.payload + 2);
                 double tround1, treply1, treply2, tround2, tprop_ctn, tprop;
 
                 memcpy(&poll_rx, &report->pollRx, 5);
@@ -334,20 +334,16 @@ static void rxcallback(dwDevice_t *dev)
                         median_data[current_receiveID].index_inserting = 0;
                     median_data[current_receiveID].distance_history[median_data[current_receiveID].index_inserting] = calcDist;        
                     rangingOk = true;  
-                    state.height[current_receiveID] = report->selfHeight;
-                    if (current_receiveID==0)
-                        state.keepFlying = report->keepFlying;
-                    state.refresh[current_receiveID] = true;
                 }
 
                 // make a new report and send it back with the dynamic tag
-                lpsTwrTagReportPayload_t *dynamic = (lpsTwrTagReportPayload_t *)(txPacket.payload+2);                
+                lpsTwrTagBidReportPayload_t *dynamic = (lpsTwrTagBidReportPayload_t *)(txPacket.payload+2);                
                 dynamic->reciprocalDistance = calcDist;
                 // estimatorKalmanGetEstimatedZ(&dynamic->selfHeight);
 
                 // Transmision
                 dwNewTransmit(dev);
-                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagReportPayload_t));
+                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagBidReportPayload_t));
                 dwWaitForResponse(dev, true);
                 dwStartTransmit(dev);
                 break;
@@ -366,7 +362,7 @@ static void rxcallback(dwDevice_t *dev)
 
                 // get the time stamp
                 deGetReceiveTimestamp(dev, &arival);
-                arival.full -= (options->anntenaDelay / 2);
+                arival.full -= (options->antennaDelay / 2);
 
                 // store the timne stamp
                 poll_rx = arival;
@@ -386,13 +382,13 @@ static void rxcallback(dwDevice_t *dev)
 
                 // get the time stamp
                 deGetReceiveTimestamp(dev, &arival);
-                arival.full -= (options->anntenaDelay / 2);
+                arival.full -= (options->antennaDelay / 2);
 
                 // store the timne stamp
                 final_rx = arival;
 
                 // make a new report and send it back with the REPORT tag
-                lpsTwrTagReportPayload_t *report = (lpsTwrTagReportPayload_t *)(txPacket.payload+2);
+                lpsTwrTagBidReportPayload_t *report = (lpsTwrTagBidReportPayload_t *)(txPacket.payload+2);
                 memcpy(&report->pollRx, &poll_rx, 5);
                 memcpy(&report->answerTx, &answer_tx, 5);
                 memcpy(&report->finalRx, &final_rx, 5);
@@ -402,7 +398,7 @@ static void rxcallback(dwDevice_t *dev)
 
                 // Transmision
                 dwNewTransmit(dev);
-                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagReportPayload_t));
+                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagBidReportPayload_t));
                 dwWaitForResponse(dev, true);
                 dwStartTransmit(dev);
                 break;
@@ -412,13 +408,13 @@ static void rxcallback(dwDevice_t *dev)
                 // This is the tricky one. In this case, you are receiver
                 // Receiving dynamic means the communication with the previous sender is done
 
-                lpsTwrInterCFsReportPayload_t *report2 = (lpsTwrInterCFsReportPayload_t *)(rxPacket.payload+2);
+                lpsTwrTagBidReportPayload_t *report2 = (lpsTwrTagBidReportPayload_t *)(rxPacket.payload+2);
                 uint8_t rangingID = (uint8_t)(rxPacket.sourceAddress & 0xFF);
                 
-                if((report2->distance)!=0)
+                if((report2->reciprocalDistance)!=0)
                 {
                     // median filter
-                    uint16_t calcDist = report2->distance;
+                    uint16_t calcDist = report2->reciprocalDistance;
                     uint16_t medianDist = median_filter_3(median_data[rangingID].distance_history);
 
                     if (ABS(medianDist-calcDist)>500)
