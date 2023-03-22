@@ -310,7 +310,7 @@ config DECK_LOCO
 choice
     prompt "Algorithm to use"
     depends on DECK_LOCO
-    default DECK_LOCO_ALGORITHM_AUTO
+    default DECK_LOCO_ALGORITHM_TWR_BID
 
     config DECK_LOCO_ALGORITHM_AUTO
         bool "Let the system decide for you"
@@ -323,6 +323,9 @@ choice
 
     config DECK_LOCO_ALGORITHM_TDOA3
         bool "Use the Time Difference of Arrival (3) algorithm"
+    
+    config DECK_LOCO_ALGORITHM_TWR_BID
+            bool "Use the Two Way Ranging Bidirectional algorithm"
 endchoice
 
 config DECK_LOCO_FULL_TX_POWER

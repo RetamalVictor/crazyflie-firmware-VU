@@ -57,6 +57,7 @@
 #include "lpsTdoa2Tag.h"
 #include "lpsTdoa3Tag.h"
 #include "lpsTwrTag.h"
+#include "lpsTwrTagBid.h"
 
 
 #define CS_PIN DECK_GPIO_IO1
@@ -97,6 +98,8 @@ static lpsAlgoOptions_t algoOptions = {
   .userRequestedMode = lpsMode_TDoA3,
 #elif defined(CONFIG_DECK_LOCO_ALGORITHM_TWR)
   .userRequestedMode = lpsMode_TWR,
+#elif defined(CONFIG_DECK_LOCO_ALGORITHM_TWR_BID)
+  .userRequestedMode = lpsMode_TWRBid, 
 #else
   .userRequestedMode = lpsMode_auto,
 #endif
@@ -115,12 +118,15 @@ struct {
   [lpsMode_TWR] = {.algorithm = &uwbTwrTagAlgorithm, .name="TWR"},
   [lpsMode_TDoA2] = {.algorithm = &uwbTdoa2TagAlgorithm, .name="TDoA2"},
   [lpsMode_TDoA3] = {.algorithm = &uwbTdoa3TagAlgorithm, .name="TDoA3"},
+  [lpsMode_TWRBid] = {.algorithm = &uwbTwrBidTagAlgorithm, .name="TWRBid"},
 };
 
 #if defined(CONFIG_DECK_LOCO_ALGORITHM_TDOA2)
 static uwbAlgorithm_t *algorithm = &uwbTdoa2TagAlgorithm;
 #elif defined(CONFIG_DECK_LOCO_ALGORITHM_TDOA3)
 static uwbAlgorithm_t *algorithm = &uwbTdoa3TagAlgorithm;
+#elif defined(CONFIG_DECK_LOCO_ALGORITHM_TWR_BID)
+static uwbAlgorithm_t *algorithm = &uwbTwrBidTagAlgorithm;
 #else
 static uwbAlgorithm_t *algorithm = &uwbTwrTagAlgorithm;
 #endif
