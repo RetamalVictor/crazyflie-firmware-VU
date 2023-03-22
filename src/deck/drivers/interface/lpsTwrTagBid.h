@@ -33,7 +33,5 @@ typedef struct {
   locoAddress_t tagAddress;
 } lpsTwrBidAlgoOptions_t;
 
-bool twrGetSwarmInfo(int robNum, float* height);
-bool commandShare(int RobIDfromControl, bool keep_flying);
 
 #endif // __LPS_TWR_TAG_BID_H__

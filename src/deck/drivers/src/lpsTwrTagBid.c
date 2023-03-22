@@ -119,79 +119,11 @@ static void twrTagInit(dwDevice_t *dev)
     rangingOk = false;
 }
 
-static uint32_t twrTagOnEvent(dwDevice_t *dev, uwbEvent_t event)
-{
-    switch (event)
-    {
-    case eventPacketReceived:
-        rxcallback(dev);
-        checkTurn = false;
-        break;
-    
-    case eventPacketSent:
-        txcallback(dev);
-        break;  
-    
-    case eventTimeout:  // Comes back to timeout after each ranging attempt
-    case eventReceiveTimeout:
-    case eventReceiveFailed:
-        // if received failed and its sender, send again   
-        if (current_mode_trans==true)
-        {
-            txPacket.payload[LPS_TWR_TYPE] = LPS_TWR_POLL;
-            txPacket.payload[LPS_TWR_SEQ] = 0;
-            txPacket.sourceAddress = selfAddress;
-            txPacket.destAddress = options->tagAddress + current_receiveID;
-            dwNewTransmit(dev);
-            dwSetDefaults(dev);
-            dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
-            dwWaitForResponse(dev, true);
-            dwStartTransmit(dev);
-        }
-
-        // if not, check if its your turn or receive again
-        else
-        {
-            if(xTaskGetTickCount() > checkTurnTick + 20) // > 20ms
-            {
-                if(checkTurn == true)
-                {
-                    current_mode_trans = true;
-                    dwIdle(dev);
-                    dwSetReceiveWaitTimeout(dev, 1000);
-                    txPacket.payload[LPS_TWR_TYPE] = LPS_TWR_POLL;
-                    txPacket.payload[LPS_TWR_SEQ] = 0;
-                    txPacket.sourceAddress = selfAddress;
-                    txPacket.destAddress = options->tagAddress + current_receiveID;
-                    dwNewTransmit(dev);
-                    dwSetDefaults(dev);
-                    dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
-                    dwWaitForResponse(dev, true);
-                    dwStartTransmit(dev);
-                    checkTurn = false;
-                    break;
-                }
-            }
-        
-            dwNewReceive(dev);
-            dwSetDefaults(dev);
-            dwStartReceive(dev);      
-        }
-        break;
-
-    default:
-      configASSERT(false);
-    }
-
-    return MAX_TIMEOUT;
-
-}
-
 static void txcallback(dwDevice_t *dev)
 {
     // time measurement
     dwTime_t departure;
-    deGetTransmitTimestamp(dev, &departure);
+    dwGetTransmitTimestamp(dev, &departure);
     departure.full += (options->antennaDelay / 2);
 
     if (current_mode_trans) // sender mode
@@ -280,7 +212,7 @@ static void rxcallback(dwDevice_t *dev)
                 txPacket.payload[LPS_TWR_SEQ] = rxPacket.payload[LPS_TWR_SEQ];
 
                 // get the time stamp
-                deGetReceiveTimestamp(dev, &arival);
+                dwGetReceiveTimestamp(dev, &arival);
                 arival.full -= (options->antennaDelay / 2);
 
                 // store the timne stamp
@@ -288,7 +220,7 @@ static void rxcallback(dwDevice_t *dev)
 
                 // send back the message with FINAL tag
                 dwNewTransmit(dev);
-                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
+                dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
                 dwWaitForResponse(dev, true);
                 dwStartTransmit(dev);
                 break;
@@ -343,7 +275,7 @@ static void rxcallback(dwDevice_t *dev)
 
                 // Transmision
                 dwNewTransmit(dev);
-                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagBidReportPayload_t));
+                dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagBidReportPayload_t));
                 dwWaitForResponse(dev, true);
                 dwStartTransmit(dev);
                 break;
@@ -361,7 +293,7 @@ static void rxcallback(dwDevice_t *dev)
                 txPacket.payload[LPS_TWR_SEQ] = rxPacket.payload[LPS_TWR_SEQ];
 
                 // get the time stamp
-                deGetReceiveTimestamp(dev, &arival);
+                dwGetReceiveTimestamp(dev, &arival);
                 arival.full -= (options->antennaDelay / 2);
 
                 // store the timne stamp
@@ -369,7 +301,7 @@ static void rxcallback(dwDevice_t *dev)
 
                 // send back the message with ANSWER tag
                 dwNewTransmit(dev);
-                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
+                dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
                 dwWaitForResponse(dev, true);
                 dwStartTransmit(dev);
                 break;
@@ -381,7 +313,7 @@ static void rxcallback(dwDevice_t *dev)
                 txPacket.payload[LPS_TWR_SEQ] = rxPacket.payload[LPS_TWR_SEQ];
 
                 // get the time stamp
-                deGetReceiveTimestamp(dev, &arival);
+                dwGetReceiveTimestamp(dev, &arival);
                 arival.full -= (options->antennaDelay / 2);
 
                 // store the timne stamp
@@ -398,7 +330,7 @@ static void rxcallback(dwDevice_t *dev)
 
                 // Transmision
                 dwNewTransmit(dev);
-                dewSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagBidReportPayload_t));
+                dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH + 2 + sizeof(lpsTwrTagBidReportPayload_t));
                 dwWaitForResponse(dev, true);
                 dwStartTransmit(dev);
                 break;
@@ -465,6 +397,75 @@ static void rxcallback(dwDevice_t *dev)
             }
         }
     }
+}
+
+
+static uint32_t twrTagOnEvent(dwDevice_t *dev, uwbEvent_t event)
+{
+    switch (event)
+    {
+    case eventPacketReceived:
+        rxcallback(dev);
+        checkTurn = false;
+        break;
+    
+    case eventPacketSent:
+        txcallback(dev);
+        break;  
+    
+    case eventTimeout:  // Comes back to timeout after each ranging attempt
+    case eventReceiveTimeout:
+    case eventReceiveFailed:
+        // if received failed and its sender, send again   
+        if (current_mode_trans==true)
+        {
+            txPacket.payload[LPS_TWR_TYPE] = LPS_TWR_POLL;
+            txPacket.payload[LPS_TWR_SEQ] = 0;
+            txPacket.sourceAddress = selfAddress;
+            txPacket.destAddress = options->tagAddress + current_receiveID;
+            dwNewTransmit(dev);
+            dwSetDefaults(dev);
+            dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
+            dwWaitForResponse(dev, true);
+            dwStartTransmit(dev);
+        }
+
+        // if not, check if its your turn or receive again
+        else
+        {
+            if(xTaskGetTickCount() > checkTurnTick + 20) // > 20ms
+            {
+                if(checkTurn == true)
+                {
+                    current_mode_trans = true;
+                    dwIdle(dev);
+                    dwSetReceiveWaitTimeout(dev, 1000);
+                    txPacket.payload[LPS_TWR_TYPE] = LPS_TWR_POLL;
+                    txPacket.payload[LPS_TWR_SEQ] = 0;
+                    txPacket.sourceAddress = selfAddress;
+                    txPacket.destAddress = options->tagAddress + current_receiveID;
+                    dwNewTransmit(dev);
+                    dwSetDefaults(dev);
+                    dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+2);
+                    dwWaitForResponse(dev, true);
+                    dwStartTransmit(dev);
+                    checkTurn = false;
+                    break;
+                }
+            }
+        
+            dwNewReceive(dev);
+            dwSetDefaults(dev);
+            dwStartReceive(dev);      
+        }
+        break;
+
+    default:
+      configASSERT(false);
+    }
+
+    return MAX_TIMEOUT;
+
 }
 
 static bool isRangingOk()
