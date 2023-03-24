@@ -10,7 +10,7 @@ log data from the Crazyflie and to set variables during runtime.
 
 The variables that are available for the logging/parameter framework are
 defined at compile-time for the Crazyflie firmware. C macros are used to define
-which variables that should be available to the framework. 
+which variables that should be available to the framework.
 
 A parameter or logging variable that is created with `PARAM_ADD_CORE` or `LOG_ADD_CORE` is considered stable API and will with a very high likelihood be available a cross firmware versions. All core parameters and logging variables must have documentation associated with it. None-core, development, parameter and logging variables should be indicated with only `PARAM_ADD` and `LOG_ADD`, which should indicate that no guarantee is given that this values will stay in later versions. See below for examples of the documentation syntax.
 
@@ -85,7 +85,7 @@ restrictions. There's one TOC for each framework, one for logging and
 one for parameters. When the client connects it will download the TOC to
 know which variables can be used. It's then easy to use the [Python
 API](https://www.bitcraze.io/documentation/repository/crazyflie-lib-python/master/api/cflib/) ([or another
-API](https://www.bitcraze.io/support/external-projects/)) for accessing them.
+API](https://www.bitcraze.io/development/external-projects/)) for accessing them.
 
 All the variables have a name and belong to a group. So in the examples
 above there's two groups defined: *ring* and *stabilizer*. To refer to
@@ -93,6 +93,9 @@ a variable use the naming convention *group.name*. If you would like to
 log the *roll* variable in the *stabilizer* group it's access by
 *stabilizer.roll*. And if you would like to set the *effect* variable in
 the ring group it's accessed using *ring.effect*.
+
+### Log Variable length
+Please use length upto 26 as total log variable length (group + name +1)
 
 ## Parameters
 
@@ -227,7 +230,7 @@ specifed in the logging configuration. The rate, on the other hand, is calculate
 last computation exceeds the configured update time of the rate logger, and if the logging intervall
 is longer than the update intervall, updates will be done for each logging call.
 
-### Parameter callback function to get notifed when a parameter has been updated.
+### Parameter callback function to get notified when a parameter has been updated.
 
 Using the macro `PARAM_ADD_WITH_CALLBACK` it is possible to register a callback function that will be called
 when the parameter gets updated. This callback will run from the parameter task so it is important to not
@@ -244,3 +247,61 @@ Example:
          ...
 
          PARAM_ADD_WITH_CALLBACK(PARAM_UINT8, setIO1pin, &pinValue, &myCallbackFunction)
+
+### Debug logging
+
+Sometimes it is useful to log data when debugging a module, but we want the logs to be disabled by default to avoid
+adding to the size of the TOC. There is a set of macros to support this, all ending in `_DEBUG`.
+
+``` C
+LOG_ADD_DEBUG(TYPE, NAME, ADDRESS)
+STATS_CNT_RATE_EVENT_DEBUG(LOGGER)
+STATS_CNT_RATE_MULTI_EVENT_DEBUG(LOGGER, CNT)
+STATS_CNT_RATE_LOG_ADD_DEBUG(NAME, LOGGER)
+```
+
+These macros behaves the same way as the "normal" macros without the `_DEBUG` extension, but they are ignored unless
+`CONFIG_DEBUG_LOG_ENABLE` is defined.
+The intended use is to add a define in a C file **before** the log.h or statsCnt.h is included to enable the macros.
+
+Example:
+
+``` C
+// Uncomment this line to enable extra logs when debugging
+// #define CONFIG_DEBUG_LOG_ENABLE 1
+#include "log.h"
+#include "statsCnt.h"
+
+#define ONE_SECOND 1000
+
+static STATS_CNT_RATE_DEFINE(firstRate, ONE_SECOND);
+
+#ifdef CONFIG_DEBUG_LOG_ENABLE
+static STATS_CNT_RATE_DEFINE(secondRate, ONE_SECOND);
+#endif
+
+static float someData;
+static float otherData;
+
+
+void aFunction(float aValue, bool doStuff) {
+  someData = aValue;
+  STATS_CNT_RATE_EVENT(&firstRate);
+
+  if (doStuff) {
+    otherData = someData * 2.0f;
+    STATS_CNT_RATE_EVENT_DEBUG(&secondRate);
+  }
+}
+
+
+LOG_GROUP_START(example)
+// These will always be available
+LOG_ADD(LOG_FLOAT, someData, &someData)
+STATS_CNT_RATE_LOG_ADD(firstRt, &firstRate)
+
+// These will only be available if CONFIG_DEBUG_LOG_ENABLE is defined
+LOG_ADD_DEBUG(LOG_FLOAT, otherData, &otherData)
+STATS_CNT_RATE_LOG_ADD_DEBUG(secondRt, &secondRate)
+LOG_GROUP_STOP(example)
+```
