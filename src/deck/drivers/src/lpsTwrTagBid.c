@@ -29,8 +29,14 @@ static lpsTwrBidAlgoOptions_t twrBidOptions = {
 
 // Defining the state of the tag
 typedef struct {
-    uint16_t distance[NumUWB];
-} swarmInfo_t;
+  uint16_t distance[NumUWB];
+  float_t vx[NumUWB];
+  float_t vy[NumUWB];
+  float_t gz[NumUWB];
+  float_t h[NumUWB];
+  bool refresh[NumUWB];
+  bool keep_flying;
+  } swarmInfo_t;
 
 // Median filter for distance ranging (size=3)
 typedef struct {
@@ -265,13 +271,23 @@ static void rxcallback(dwDevice_t *dev)
                     if(median_data[current_receiveID].index_inserting==3)
                         median_data[current_receiveID].index_inserting = 0;
                     median_data[current_receiveID].distance_history[median_data[current_receiveID].index_inserting] = calcDist;        
-                    rangingOk = true;  
+                    rangingOk = true;
+                    state.vx[current_receiveID] = report->selfVx;
+                    state.vy[current_receiveID] = report->selfVy;
+                    state.gz[current_receiveID] = report->selfGz;
+                    state.h[current_receiveID]  = report->selfh;
+                    if(current_receiveID==0)
+                        state.keep_flying = report->keep_flying;
+                    state.refresh[current_receiveID] = true;  
                 }
 
                 // make a new report and send it back with the dynamic tag
                 lpsTwrTagBidReportPayload_t *dynamic = (lpsTwrTagBidReportPayload_t *)(txPacket.payload+2);                
                 dynamic->reciprocalDistance = calcDist;
+                report2->reciprocalDistance = calcDist;
+                estimatorKalmanGetSwarmInfo(&report2->selfVx, &report2->selfVy, &report2->selfGz, &report2->selfh);
                 // estimatorKalmanGetEstimatedZ(&dynamic->selfHeight);
+                report2->keep_flying = state.keep_flying;
 
                 // Transmision
                 dwNewTransmit(dev);
@@ -326,6 +342,8 @@ static void rxcallback(dwDevice_t *dev)
                 memcpy(&report->finalRx, &final_rx, 5);
 
                 // fill the packet
+                estimatorKalmanGetSwarmInfo(&report->selfVx, &report->selfVy, &report->selfGz, &report->selfh);
+                report->keep_flying = state.keep_flying;
                 // estimatorKalmanGetEstimatedZ(&report->selfHeight);
 
                 // Transmision
@@ -354,7 +372,14 @@ static void rxcallback(dwDevice_t *dev)
                     else
                         state.distance[rangingID] = calcDist;
                     median_data[rangingID].index_inserting++;
-                    
+                    state.vx[rangingID] = report2->selfVx;
+                    state.vy[rangingID] = report2->selfVy;
+                    state.gz[rangingID] = report2->selfGz;
+                    state.h[rangingID]  = report2->selfh;
+                    if(rangingID==0)
+                        state.keep_flying = report2->keep_flying;
+                    state.refresh[rangingID] = true;
+
                     // Circular insertion 0 --> 1 --> 2 --> 0
                     if(median_data[rangingID].index_inserting==3)
                         median_data[rangingID].index_inserting = 0;
@@ -494,6 +519,29 @@ static uint8_t getActiveAnchorIdList(uint8_t unorderedAnchorList[], const int ma
       count++;
   }
   return count;
+}
+
+bool twrGetSwarmInfo(int robNum, uint16_t* range, float* vx, float* vy, float* gyroZ, float* height) {
+  if(state.refresh[robNum]==true) {
+    state.refresh[robNum] = false;
+    *range = state.distance[robNum];
+    *vx = state.vx[robNum];
+    *vy = state.vy[robNum];
+    *gyroZ = state.gz[robNum];
+    *height = state.h[robNum];
+    return(true);
+  }else {
+    return(false);
+  }
+}
+
+bool command_share(int RobIDfromControl, bool keep_flying) {
+  if(RobIDfromControl==0){
+    state.keep_flying = keep_flying;
+    return keep_flying;
+  }else{
+    return state.keep_flying;
+  }
 }
 
 uwbAlgorithm_t uwbTwrBidTagAlgorithm = {

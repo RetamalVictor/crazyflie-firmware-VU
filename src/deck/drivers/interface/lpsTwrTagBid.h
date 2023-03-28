@@ -26,7 +26,15 @@ typedef struct {
   uint8_t answerTx[5];
   uint8_t finalRx[5];
   uint16_t reciprocalDistance;
+  float_t selfVx;
+  float_t selfVy;
+  float_t selfGz;
+  float_t selfh;
+  bool keep_flying;
 } __attribute__((packed)) lpsTwrTagBidReportPayload_t;
+
+bool twrGetSwarmInfo(int robNum, uint16_t* range, float* vx, float* vy, float* gyroZ, float* height);
+bool command_share(int RobIDfromControl, bool keep_flying);
 
 typedef struct {
   const uint64_t antennaDelay;
